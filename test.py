@@ -1,11 +1,15 @@
 import tensorflow as tf
+import numpy as np
 
 mnist = tf.keras.datasets.mnist
 
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
+
+print(y_train)
+print(y_test)
+
 x_train, x_test = x_train / 255.0, x_test / 255.0
 
-print(x_train)
 
 model = tf.keras.models.Sequential([
     tf.keras.layers.Flatten(input_shape=(28, 28)),
@@ -15,13 +19,17 @@ model = tf.keras.models.Sequential([
 ])
 
 predictions = model(x_train[:1]).numpy()
-predictions
+predictions2 = model(x_train[:3]).numpy()
+predictions3 = model(x_train[:10]).numpy()
+print(predictions)
+print(predictions2)
+print(predictions3)
 
-tf.nn.softmax(predictions).numpy()
+tf.nn.softmax(predictions3).numpy()
 
 loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 
-loss_fn(y_train[:1], predictions).numpy()
+loss_fn(y_train[:10], predictions3).numpy()
 
 model.compile(optimizer='adam',
               loss=loss_fn,
@@ -36,6 +44,10 @@ probability_model = tf.keras.Sequential([
     tf.keras.layers.Softmax()
 ])
 
-print(y_train)
+result = probability_model.predict(x_test)
 
-print(probability_model(x_test[:5]))
+print(result[0])
+# The predicted result
+print(np.argmax(result[0]))
+# The wanted result
+print(y_test[0])
