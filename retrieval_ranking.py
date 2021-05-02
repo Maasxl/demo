@@ -2,7 +2,6 @@ import os
 import pprint
 import tempfile
 
-
 from typing import Dict, Text
 
 import numpy as np
@@ -20,18 +19,8 @@ import tensorflow_recommenders as tfrs
 path = 'data\\mockdata.csv'
 df = pd.read_csv(path)
 df.head()
-print(df)
-
-mockdata = tf.data.Dataset.from_tensor_slices((tf.cast(df['user_id'].values, tf.int64),
-                                               tf.cast(
-    df['campsite_id'].values, tf.int64),
-    tf.cast(df['user_rating'].values, tf.float32)))
 
 mockdata = tf.data.Dataset.from_tensor_slices(dict(df))
-
-print('mockdata:')
-print(list(mockdata.as_numpy_iterator()))
-print(mockdata)
 
 # Select the basic features.
 ratings = mockdata.map(lambda x: {
@@ -41,19 +30,19 @@ ratings = mockdata.map(lambda x: {
 })
 campings = mockdata.map(lambda x: x['campsite_id'])
 
-print(ratings)
 print(campings)
+print(ratings)
 
 # Randomly shuffle data and split between train and test.
-tf.random.set_seed(42)
-shuffled = ratings.shuffle(100, seed=42, reshuffle_each_iteration=False)
+tf.random.set_seed(32)
+shuffled = ratings.shuffle(107, seed=32, reshuffle_each_iteration=False)
 
-train = shuffled.take(80)
-test = shuffled.skip(80).take(20)
+train = shuffled.take(83)
+test = shuffled.skip(83).take(24)
 
 # Define vocabularies
-camping_ids = campings.batch(1000)
-user_ids = ratings.batch(1000).map(lambda x: x["user_id"])
+camping_ids = campings.batch(107)
+user_ids = ratings.batch(107).map(lambda x: x["user_id"])
 
 unique_campsites = np.unique(np.concatenate(list(camping_ids)))
 unique_user_ids = np.unique(np.concatenate(list(user_ids)))
@@ -103,7 +92,7 @@ class MovielensModel(tfrs.models.Model):
         )
         self.retrieval_task: tf.keras.layers.Layer = tfrs.tasks.Retrieval(
             metrics=tfrs.metrics.FactorizedTopK(
-                candidates=campings.batch(128).map(self.campsite_model)
+                candidates=campings.batch(107).map(self.campsite_model)
             )
         )
 
@@ -121,7 +110,7 @@ class MovielensModel(tfrs.models.Model):
             user_embeddings,
             camping_embeddings,
             # We apply the multi-layered rating model to a concatentation of
-            # user and movie embeddings.
+            # user and campsite embeddings.
             self.rating_model(
                 tf.concat([user_embeddings, camping_embeddings], axis=1)
             ),
@@ -149,10 +138,10 @@ class MovielensModel(tfrs.models.Model):
 model = MovielensModel(rating_weight=1.0, retrieval_weight=1.0)
 model.compile(optimizer=tf.keras.optimizers.Adagrad(0.1))
 
-cached_train = train.shuffle(128).batch(128).cache()
-cached_test = test.batch(13).cache()
+cached_train = train.shuffle(83).batch(83).cache()
+cached_test = test.batch(24).cache()
 
-model.fit(cached_train, epochs=3)
+model.fit(cached_train, epochs=1)
 metrics = model.evaluate(cached_test, return_dict=True)
 
 print(
@@ -160,9 +149,10 @@ print(
 print(f"Ranking RMSE: {metrics['root_mean_squared_error']:.3f}.")
 
 # Create a model that takes in raw query features, and
-index = tfrs.layers.factorized_top_k.BruteForce(model.user_model)
+index = tfrs.layers.factorized_top_k.BruteForce(model.user_model, 100)
 # recommends movies out of the entire movies dataset.
-index.index(campings.batch(10).map(model.campsite_model), campings)
+index.index(campings.batch(100).map(model.campsite_model), campings)
 
-_, titles = index(tf.constant([7]))
-print(f"Recommendations for user 7: {titles[0]}")
+_, prediction = index(tf.constant([0]))
+
+print(f"Recommendations for user 1: {prediction[0]}")
