@@ -52,7 +52,7 @@ print(unique_campsites)
 
 
 # Combine to create model
-class MovielensModel(tfrs.models.Model):
+class CampsiteRatingModel(tfrs.models.Model):
 
     def __init__(self, rating_weight: float, retrieval_weight: float) -> None:
         # We take the loss weights in the constructor: this allows us to instantiate
@@ -76,9 +76,6 @@ class MovielensModel(tfrs.models.Model):
                 len(unique_user_ids) + 1, embedding_dimension)
         ])
 
-        # A small model to take in user and movie embeddings and predict ratings.
-        # We can make this as complicated as we want as long as we output a scalar
-        # as our prediction. These are the layers the DNN uses to predict.
         self.rating_model = tf.keras.Sequential([
             tf.keras.layers.Dense(256, activation="relu"),
             tf.keras.layers.Dense(128, activation="relu"),
@@ -101,16 +98,12 @@ class MovielensModel(tfrs.models.Model):
         self.retrieval_weight = retrieval_weight
 
     def call(self, features: Dict[Text, tf.Tensor]) -> tf.Tensor:
-        # We pick out the user features and pass them into the user model.
         user_embeddings = self.user_model(features["user_id"])
-        # And pick out the movie features and pass them into the movie model.
         camping_embeddings = self.campsite_model(features["campsite_id"])
 
         return (
             user_embeddings,
             camping_embeddings,
-            # We apply the multi-layered rating model to a concatentation of
-            # user and campsite embeddings.
             self.rating_model(
                 tf.concat([user_embeddings, camping_embeddings], axis=1)
             ),
@@ -135,7 +128,7 @@ class MovielensModel(tfrs.models.Model):
         return (self.rating_weight * rating_loss + self.retrieval_weight * retrieval_loss)
 
 
-model = MovielensModel(rating_weight=1.0, retrieval_weight=1.0)
+model = CampsiteRatingModel(rating_weight=1.0, retrieval_weight=1.0)
 model.compile(optimizer=tf.keras.optimizers.Adagrad(0.1))
 
 cached_train = train.shuffle(83).batch(83).cache()
